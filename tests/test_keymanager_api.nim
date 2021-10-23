@@ -158,7 +158,7 @@ proc startSingleNodeNetwork =
     "--import-light-client-data=none",
     "--doppelganger-detection=off"], it))
 
-  let metadata = loadEth2NetworkMetadata(dataDir)
+  let metadata = loadEth2NetworkMetadata(dataDir, none(Eth1Network))
 
   let node = BeaconNode.init(
     metadata.cfg,
@@ -776,5 +776,3 @@ proc runTests {.async.} =
 proc main() {.async.} =
   asyncSpawn runTests()
   startSingleNodeNetwork()
-
-waitFor main()

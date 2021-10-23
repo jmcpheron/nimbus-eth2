@@ -111,7 +111,7 @@ type
 
     logLevel* {.
       desc: "Sets the log level for process and topics (e.g. \"DEBUG; TRACE:discv5,libp2p; REQUIRED:none; DISABLED:none\")"
-      defaultValue: "INFO"
+      defaultValue: "DEBUG"
       name: "log-level" }: string
 
     logStdout* {.
@@ -496,13 +496,13 @@ type
       proposerBoosting* {.
         hidden
         desc: "Enable proposer boosting; temporary option feature gate (debugging; option may be removed without warning)",
-        defaultValue: false
+        defaultValue: true
         name: "proposer-boosting-debug" }: bool
 
       useJwt* {.
         hidden
         desc: "Enable JWT authentication headers; temporary option feature gate (debugging; option may be remove without warning)",
-        defaultValue: false
+        defaultValue: true
         name: "use-jwt-debug" }: bool
 
       # https://github.com/ethereum/consensus-specs/blob/v1.1.10/sync/optimistic.md#fork-choice-poisoning
@@ -518,6 +518,13 @@ type
         hidden
         desc: "A file containing the hex-encoded 256 bit secret key to be used for verifying/generating jwt tokens"
         name: "jwt-secret" .}: Option[string]
+
+      # Same option as appears in Lighthouse and Prysm
+      # https://lighthouse-book.sigmaprime.io/suggested-fee-recipient.html
+      # https://github.com/prysmaticlabs/prysm/pull/10312
+      suggestedFeeRecipient* {.
+        desc: "Suggested fee recipient"
+        name: "suggested-fee-recipient" .}: Option[string]
 
     of BNStartUpCmd.createTestnet:
       testnetDepositsFile* {.

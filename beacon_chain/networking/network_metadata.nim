@@ -86,6 +86,7 @@ type
 
 const
   eth2NetworksDir = currentSourcePath.parentDir.replace('\\', '/') & "/../../vendor/eth2-networks"
+  mergeNetworksDir = currentSourcePath.parentDir.replace('\\', '/') & "/../../vendor/merge-testnets"
 
 proc readBootstrapNodes*(path: string): seq[string] {.raises: [IOError, Defect].} =
   # Read a list of ENR values from a YAML file containing a flat list of entries
@@ -169,7 +170,9 @@ proc loadEth2NetworkMetadata*(path: string, eth1Network = none(Eth1Network)): Et
           let data = (genesisData[0 ..< 40].toHex())
           data in [
             # Prater
-            "60F4596000000000043DB0D9A83813551EE2F33450D23797757D430911A9320530AD8A0EABC43EFB"
+            "60F4596000000000043DB0D9A83813551EE2F33450D23797757D430911A9320530AD8A0EABC43EFB",
+            # Kiln
+            "0C572B620000000099B09FCD43E5905236C370F184056BEC6E6638CFC31A323B304FC4AA789CB4AD"
           ]
         else:
           false
@@ -215,11 +218,15 @@ template eth2Network(path: string, eth1Network: Eth1Network): Eth2NetworkMetadat
   loadCompileTimeNetworkMetadata(eth2NetworksDir & "/" & path,
                                  some eth1Network)
 
+template mergeNetwork(path: string): Eth2NetworkMetadata =
+  loadCompileTimeNetworkMetadata(mergeNetworksDir & "/" & path)
+
 when not defined(gnosisChainBinary):
   when const_preset == "mainnet":
     const
       mainnetMetadata* = eth2Network("shared/mainnet", mainnet)
       praterMetadata* = eth2Network("shared/prater", goerli)
+      kilnMetadata* = mergeNetwork("kiln")
 
   proc getMetadataForNetwork*(networkName: string): Eth2NetworkMetadata {.raises: [Defect, IOError].} =
     template loadRuntimeMetadata: auto =
@@ -240,6 +247,8 @@ when not defined(gnosisChainBinary):
           mainnetMetadata
         of "prater":
           praterMetadata
+        of "kiln":
+          kilnMetadata
         else:
           loadRuntimeMetadata()
       else:
