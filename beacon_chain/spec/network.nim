@@ -101,7 +101,7 @@ func getSyncCommitteeContributionAndProofTopic*(forkDigest: ForkDigest): string 
 # https://github.com/ethereum/consensus-specs/blob/vFuture/specs/altair/sync-protocol.md#optimistic_light_client_update
 func getOptimisticLightClientUpdateTopic*(forkDigest: ForkDigest): string =
   ## For broadcasting or obtaining the latest `OptimisticLightClientUpdate`.
-  eth2Prefix(forkDigest) & "optimistic_light_client_update_v0/ssz_snappy"
+  eth2Prefix(forkDigest) & "optimistic_light_client_update/ssz_snappy"
 
 func getENRForkID*(cfg: RuntimeConfig,
                    epoch: Epoch,
