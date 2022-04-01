@@ -1,6 +1,6 @@
 import
   std/[os, stats, strformat, tables],
-  snappy, snappy/framing,
+  snappy,
   chronicles, confutils, stew/[byteutils, io2], eth/db/kvstore_sqlite3,
   ../beacon_chain/networking/network_metadata,
   ../beacon_chain/[beacon_chain_db],
@@ -529,7 +529,7 @@ proc cmdImportEra(conf: DbConf, cfg: RuntimeConfig) =
 
       if header.typ == SnappyBeaconBlock:
         withTimer(timers[tBlock]):
-          let uncompressed = framingFormatUncompress(data)
+          let uncompressed = decodeFramed(data)
           let blck = try: readSszForkedSignedBeaconBlock(cfg, uncompressed)
           except CatchableError as exc:
             error "Invalid snappy block", msg = exc.msg, file
@@ -540,7 +540,7 @@ proc cmdImportEra(conf: DbConf, cfg: RuntimeConfig) =
         blocks += 1
       elif header.typ == SnappyBeaconState:
         withTimer(timers[tState]):
-          let uncompressed = framingFormatUncompress(data)
+          let uncompressed = decodeFramed(data)
           let state = try: newClone(
             readSszForkedHashedBeaconState(cfg, uncompressed))
           except CatchableError as exc:
