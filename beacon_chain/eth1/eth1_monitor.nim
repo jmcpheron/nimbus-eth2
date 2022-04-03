@@ -130,7 +130,7 @@ type
 
   Web3DataProvider* = object
     url: string
-    web3: Web3
+    web3*: Web3
     ns: Sender[DepositContract]
     blockHeadersSubscription: Subscription
 

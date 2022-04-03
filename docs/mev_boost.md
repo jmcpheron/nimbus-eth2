@@ -1,51 +1,22 @@
 # Clone repos
-
+Required: golang
 ```
 git clone https://github.com/flashbots/mev-boost.git
 
-# On the thegostep/docs branch
+# On the FOO branch
 git checkout 977d487e6eae38afbc9e4108e8c5c24689a8c222
 ```
 
-Apply
-```diff
-diff --git a/lib/service.go b/lib/service.go
-index cd3e88e..b477fb5 100644
---- a/lib/service.go
-+++ b/lib/service.go
-@@ -8,6 +8,7 @@ import (
- 	"io"
- 	"io/ioutil"
- 	"log"
-+ 	"math/big"
- 	"net/http"
- 
- 	"github.com/ethereum/go-ethereum/common"
-@@ -165,6 +166,11 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
- 		blockHash = body.ExecutionPayloadCamel.BlockHashCamel
- 	}
- 
-+    var foo ExecutionPayloadWithTxRootV1
-+    foo = ExecutionPayloadWithTxRootV1{BaseFeePerGas: big.NewInt(4)}
-+    *result = foo
-+    return nil
-+
- 	payloadCached := m.store.Get(common.HexToHash(blockHash))
- 	if payloadCached != nil {
- 		log.Println(green("ProposeBlindedBlockV1: ✓ revealing previous payload from execution client: "), payloadCached.BlockHash, payloadCached.Number, payloadCached.TransactionsRoot)
-@@ -197,6 +203,11 @@ var nilHash = common.Hash{}
- 
- // GetPayloadHeaderV1 TODO
- func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *ExecutionPayloadWithTxRootV1) error {
-+    var foo ExecutionPayloadWithTxRootV1
-+    foo = ExecutionPayloadWithTxRootV1{BaseFeePerGas: big.NewInt(4)}
-+    *result = foo
-+    return nil;
-+
- 	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{*args})
- 	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{*args})
+
+`openssl rand -hex 32 | tr -d "\n" > "/tmp/jwtsecret"`
+
+# Build and run mock relay
+Required Debian packages (translate as appropriate to other distributions): `cargo cmake g++ libclang-dev`
 ```
-if one wants to just test the RPC without a relay or execution client, only the builder.
+git clone https://github.com/realbigsean/mock-relay
+cd mock-relay
+cargo build
+```
 
 # Build and run the mev-boost command
 
@@ -53,6 +24,25 @@ In the `mev-boost/cmd/mev-boost` directory, run `go build . && ./mev_boost`:
 ```
 $ go build . && ./mev-boost
 mev-boost: 2022/02/23 06:45:07 main.go:29: listening on:  18550
+```
+
+NEW:
+```
+mev-boost$ ./mev-boost --relayUrl http://127.0.0.1:8650
+INFO[0000] mev-boost dev                                 prefix=cmd/mev-boost
+INFO[0000] listening on:  18550                          prefix=cmd/mev-boost
+```
+
+```
+mock-relay$ ./target/debug/mock-relay --jwt-secret /tmp/jwtsecret --execution-endpoint http://localhost:8545
+```
+
+```
+socat -v TCP-LISTEN:19550,fork TCP-CONNECT:127.0.0.1:18550
+```
+
+```
+socat -v TCP-LISTEN:9650,fork TCP-CONNECT:127.0.0.1:8650
 ```
 
 # Run the Nimbus-side RPC test
