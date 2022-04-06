@@ -434,7 +434,7 @@ proc forkchoice_updated(state: bellatrix.BeaconState,
           head_block_hash, finalized_block_hash, timestamp, random.data,
           fee_recipient),
         web3Timeout):
-          debug "forkchoice_updated: forkchoiceUpdated timed out"
+          info "forkchoice_updated: forkchoiceUpdated timed out"
           default(ForkchoiceUpdatedResponse)
     payloadId = forkchoiceResponse.payloadId
 
@@ -442,6 +442,48 @@ proc forkchoice_updated(state: bellatrix.BeaconState,
     some(bellatrix.PayloadID(payloadId.get))
   else:
     none(bellatrix.PayloadID)
+
+proc get_execution_payload(
+    payload_id: Option[bellatrix.PayloadId], execution_engine: Eth1Monitor):
+    Future[bellatrix.ExecutionPayload] {.async.} =
+  return if payload_id.isNone():
+    # Pre-merge, empty payload
+    default(bellatrix.ExecutionPayload)
+  else:
+    asConsensusExecutionPayload(
+      await execution_engine.getPayload(payload_id.get))
+
+proc getExecutionPayload(node: BeaconNode, proposalState: auto):
+    Future[ExecutionPayload] {.async.} =
+  # https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/validator.md#executionpayload
+  # TODO a more reasonable fallback
+  doAssert not node.eth1Monitor.isNil
+
+  # Minimize window for Eth1 monitor to shut down connection
+  await node.consensusManager.eth1Monitor.ensureDataProvider()
+
+  let
+    feeRecipient =
+      if node.config.suggestedFeeRecipient.isSome:
+        Eth1Address.fromHex(node.config.suggestedFeeRecipient.get)
+      else:
+        default(Eth1Address)
+    latestHead =
+      if not node.dag.head.executionBlockRoot.isZero:
+        node.dag.head.executionBlockRoot
+      else:
+        default(Eth2Digest)
+    latestFinalized = node.dag.finalizedHead.blck.executionBlockRoot
+    payload_id = (await forkchoice_updated(
+      proposalState.bellatrixData.data, latestHead, latestFinalized,
+      feeRecipient, node.consensusManager.eth1Monitor))
+    payload = await get_execution_payload(
+      payload_id, node.consensusManager.eth1Monitor)
+    executionPayloadStatus =
+      await node.consensusManager.eth1Monitor.newExecutionPayload(
+        payload)
+
+  return payload
 
 proc makeBeaconBlockForHeadAndSlot*(node: BeaconNode,
                                     randao_reveal: ValidatorSig,
@@ -474,23 +516,31 @@ proc makeBeaconBlockForHeadAndSlot*(node: BeaconNode,
 
     let exits = withState(state):
       node.exitPool[].getBeaconBlockExits(state.data)
-    let res = makeBeaconBlock(
-      node.dag.cfg,
-      state,
-      validator_index,
-      randao_reveal,
-      eth1Proposal.vote,
-      graffiti,
-      node.attestationPool[].getAttestationsForBlock(state, cache),
-      eth1Proposal.deposits,
-      exits,
-      if slot.epoch < node.dag.cfg.ALTAIR_FORK_EPOCH:
-        SyncAggregate.init()
-      else:
-        node.syncCommitteeMsgPool[].produceSyncAggregate(head.root),
-      default(bellatrix.ExecutionPayload),
-      noRollback, # Temporary state - no need for rollback
-      cache)
+    let res = try:
+      makeBeaconBlock(
+        node.dag.cfg,
+        state,
+        validator_index,
+        randao_reveal,
+        eth1Proposal.vote,
+        graffiti,
+        node.attestationPool[].getAttestationsForBlock(state, cache),
+        eth1Proposal.deposits,
+        exits,
+        if slot.epoch < node.dag.cfg.ALTAIR_FORK_EPOCH:
+          SyncAggregate.init()
+        else:
+          node.syncCommitteeMsgPool[].produceSyncAggregate(head.root),
+        if slot.epoch < node.dag.cfg.BELLATRIX_FORK_EPOCH:
+          default(bellatrix.ExecutionPayload)
+        else:
+          (await getExecutionPayload(node, proposalState)),
+        noRollback, # Temporary state - no need for rollback
+        cache)
+    except CatchableError as err:
+      # Prefer not to create block at all if it can't get ExecutionPayload
+      error "Error creating beacon block", msg = err.msg
+      Result[ForkedBeaconBlock, cstring].err("Error getting ExecutionPayload")
     if res.isErr():
       # This is almost certainly a bug, but it's complex enough that there's a
       # small risk it might happen even when most proposals succeed - thus we
