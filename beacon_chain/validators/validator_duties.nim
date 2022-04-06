@@ -41,6 +41,7 @@ import
 
 from eth/async_utils import awaitWithTimeout
 from web3/engine_api import ForkchoiceUpdatedResponse
+from web3/engine_api_types import PayloadExecutionStatus
 
 # Metrics for tracking attestation and beacon block loss
 const delayBuckets = [-Inf, -4.0, -2.0, -1.0, -0.5, -0.1, -0.05,
@@ -456,34 +457,52 @@ proc get_execution_payload(
 proc getExecutionPayload(node: BeaconNode, proposalState: auto):
     Future[ExecutionPayload] {.async.} =
   # https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/validator.md#executionpayload
-  # TODO a more reasonable fallback
-  doAssert not node.eth1Monitor.isNil
 
-  # Minimize window for Eth1 monitor to shut down connection
-  await node.consensusManager.eth1Monitor.ensureDataProvider()
+  # Only current hardfork with execution payloads is Bellatrix
+  static: doAssert high(BeaconBlockFork) == BeaconBlockFork.Bellatrix
+  template empty_execution_payload(): auto =
+    build_empty_execution_payload(proposalState.bellatrixData.data)
 
-  let
-    feeRecipient =
-      if node.config.suggestedFeeRecipient.isSome:
-        Eth1Address.fromHex(node.config.suggestedFeeRecipient.get)
-      else:
-        default(Eth1Address)
-    latestHead =
-      if not node.dag.head.executionBlockRoot.isZero:
-        node.dag.head.executionBlockRoot
-      else:
-        default(Eth2Digest)
-    latestFinalized = node.dag.finalizedHead.blck.executionBlockRoot
-    payload_id = (await forkchoice_updated(
-      proposalState.bellatrixData.data, latestHead, latestFinalized,
-      feeRecipient, node.consensusManager.eth1Monitor))
-    payload = await get_execution_payload(
-      payload_id, node.consensusManager.eth1Monitor)
-    executionPayloadStatus =
-      await node.consensusManager.eth1Monitor.newExecutionPayload(
-        payload)
+  if node.eth1Monitor.isNil:
+    warn "getExecutionPayload: eth1Monitor not initialized; using empty execution payload"
+    return empty_execution_payload
 
-  return payload
+  try:
+    # Minimize window for Eth1 monitor to shut down connection
+    await node.consensusManager.eth1Monitor.ensureDataProvider()
+
+    let
+      feeRecipient =
+        if node.config.suggestedFeeRecipient.isSome:
+          Eth1Address.fromHex(node.config.suggestedFeeRecipient.get)
+        else:
+          default(Eth1Address)
+      latestHead =
+        if not node.dag.head.executionBlockRoot.isZero:
+          node.dag.head.executionBlockRoot
+        else:
+          default(Eth2Digest)
+      latestFinalized = node.dag.finalizedHead.blck.executionBlockRoot
+      payload_id = (await forkchoice_updated(
+        proposalState.bellatrixData.data, latestHead, latestFinalized,
+        feeRecipient, node.consensusManager.eth1Monitor))
+      payload = await get_execution_payload(
+        payload_id, node.consensusManager.eth1Monitor)
+      executionPayloadStatus =
+        await node.consensusManager.eth1Monitor.newExecutionPayload(
+          payload)
+
+    if executionPayloadStatus != PayloadExecutionStatus.valid:
+      info "getExecutionPayload: newExecutionPayload not valid; using empty execution payload",
+        executionPayloadStatus
+      return empty_execution_payload
+
+    return payload
+  except CatchableError as err:
+    # Prefer not to create block at all if it can't get ExecutionPayload
+    error "Error creating non-empty execution payload; using empty execution payload",
+      msg = err.msg
+    return empty_execution_payload
 
 proc makeBeaconBlockForHeadAndSlot*(node: BeaconNode,
                                     randao_reveal: ValidatorSig,
@@ -516,31 +535,26 @@ proc makeBeaconBlockForHeadAndSlot*(node: BeaconNode,
 
     let exits = withState(state):
       node.exitPool[].getBeaconBlockExits(state.data)
-    let res = try:
-      makeBeaconBlock(
-        node.dag.cfg,
-        state,
-        validator_index,
-        randao_reveal,
-        eth1Proposal.vote,
-        graffiti,
-        node.attestationPool[].getAttestationsForBlock(state, cache),
-        eth1Proposal.deposits,
-        exits,
-        if slot.epoch < node.dag.cfg.ALTAIR_FORK_EPOCH:
-          SyncAggregate.init()
-        else:
-          node.syncCommitteeMsgPool[].produceSyncAggregate(head.root),
-        if slot.epoch < node.dag.cfg.BELLATRIX_FORK_EPOCH:
-          default(bellatrix.ExecutionPayload)
-        else:
-          (await getExecutionPayload(node, proposalState)),
-        noRollback, # Temporary state - no need for rollback
-        cache)
-    except CatchableError as err:
-      # Prefer not to create block at all if it can't get ExecutionPayload
-      error "Error creating beacon block", msg = err.msg
-      Result[ForkedBeaconBlock, cstring].err("Error getting ExecutionPayload")
+    let res = makeBeaconBlock(
+      node.dag.cfg,
+      state,
+      validator_index,
+      randao_reveal,
+      eth1Proposal.vote,
+      graffiti,
+      node.attestationPool[].getAttestationsForBlock(state, cache),
+      eth1Proposal.deposits,
+      exits,
+      if slot.epoch < node.dag.cfg.ALTAIR_FORK_EPOCH:
+        SyncAggregate.init()
+      else:
+        node.syncCommitteeMsgPool[].produceSyncAggregate(head.root),
+      if slot.epoch < node.dag.cfg.BELLATRIX_FORK_EPOCH:
+        default(bellatrix.ExecutionPayload)
+      else:
+        (await getExecutionPayload(node, proposalState)),
+      noRollback, # Temporary state - no need for rollback
+      cache)
     if res.isErr():
       # This is almost certainly a bug, but it's complex enough that there's a
       # small risk it might happen even when most proposals succeed - thus we
