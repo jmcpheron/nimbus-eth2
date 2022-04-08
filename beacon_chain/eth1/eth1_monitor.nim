@@ -492,6 +492,35 @@ proc forkchoiceUpdated*(p: Eth1Monitor,
       finalizedBlockHash: finalizedBlock.asBlockHash),
     none(engine_api.PayloadAttributesV1))
 
+proc forkchoiceUpdated*(p: Web3DataProviderRef,
+                        headBlock, finalizedBlock: Eth2Digest,
+                        timestamp: uint64,
+                        randomData: array[32, byte],
+                        suggestedFeeRecipient: Eth1Address):
+                        Future[engine_api.ForkchoiceUpdatedResponse] =
+  # Eth1 monitor can recycle connections without (external) warning; at least,
+  # don't crash.
+  if p.isNil:
+    var fcuR: Future[engine_api.ForkchoiceUpdatedResponse]
+    fcuR.complete(engine_api.ForkchoiceUpdatedResponse(
+      payloadStatus: PayloadStatusV1(status: PayloadExecutionStatus.syncing)))
+    return fcuR
+
+  p.web3.provider.engine_forkchoiceUpdatedV1(
+    ForkchoiceStateV1(
+      headBlockHash: headBlock.asBlockHash,
+
+      # https://hackmd.io/@n0ble/kintsugi-spec#Engine-API
+      # "CL client software MUST use headBlockHash value as a stub for the
+      # safeBlockHash parameter"
+      safeBlockHash: headBlock.asBlockHash,
+
+      finalizedBlockHash: finalizedBlock.asBlockHash),
+    some(engine_api.PayloadAttributesV1(
+      timestamp: Quantity timestamp,
+      prevRandao: FixedBytes[32] randomData,
+      suggestedFeeRecipient: suggestedFeeRecipient)))
+
 proc forkchoiceUpdated*(p: Eth1Monitor,
                         headBlock, finalizedBlock: Eth2Digest,
                         timestamp: uint64,

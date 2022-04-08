@@ -10,13 +10,33 @@ git checkout 977d487e6eae38afbc9e4108e8c5c24689a8c222
 
 `openssl rand -hex 32 | tr -d "\n" > "/tmp/jwtsecret"`
 
+
+# Build and run geth
+necessary at least for `getBlockByNumber` using matching genesis.json
+
 # Build and run mock relay
-Required Debian packages (translate as appropriate to other distributions): `cargo cmake g++ libclang-dev`
 ```
-git clone https://github.com/realbigsean/mock-relay
-cd mock-relay
-cargo build
+git clone https://github.com/protolambda/mergemock
+cd mergemock
+go build
 ```
+
+```
+mergemock$ ./mergemock relay 
+INFO   [2022-04-07T20:44:51+00:00] Loaded JWT secret                             val="74a944043bb8326664cdd613f0cf3831a977826195fd9f97789d511e553589a3"
+INFO   [2022-04-07T20:44:51+00:00] Persisted trie from memory database           fields.time="7.906µs" gcnodes="0" gcsize="0.00 B" gctime="0s" livenodes="1" livesize="0.00 B" nodes="1" size="151.00 B"
+INFO   [2022-04-07T20:44:51+00:00] Loaded most recent local header               age="53y1w2d" hash="0x3b8fb240d288781d4aac94d3fd16809ee413bc99294a085798a589dae51ddd4a" number="0" td="17179869184"
+INFO   [2022-04-07T20:44:51+00:00] Loaded most recent local full block           age="53y1w2d" hash="0x3b8fb240d288781d4aac94d3fd16809ee413bc99294a085798a589dae51ddd4a" number="0" td="17179869184"
+INFO   [2022-04-07T20:44:51+00:00] Loaded most recent local fast block           age="53y1w2d" hash="0x3b8fb240d288781d4aac94d3fd16809ee413bc99294a085798a589dae51ddd4a" number="0" td="17179869184"
+WARNING[2022-04-07T20:44:51+00:00] Failed to load snapshot, regenerating         err="missing or corrupted snapshot"
+INFO   [2022-04-07T20:44:51+00:00] Rebuilding state snapshot                    
+INFO   [2022-04-07T20:44:51+00:00] Resuming state snapshot generation            accounts="0" elapsed="220.326µs" root="0xca3149fa9e37db08d1cd49c9061db1002ef1cd58db2210f2115c8c989b2bdf45" slots="0" storage="0.00 B"
+INFO   [2022-04-07T20:44:51+00:00] Generated state snapshot                      accounts="1" elapsed="468.727µs" slots="0" storage="50.00 B"
+INFO   [2022-04-07T20:44:51+00:00] started                                      
+INFO   [2022-04-07T20:44:51+00:00] started
+```
+
+nb: needs genesis.json and jwt.hex in cwd, seems to be nonconfigurable
 
 # Build and run the mev-boost command
 
