@@ -105,7 +105,7 @@ proc installKeymanagerHandlers*(router: var RestRouter, node: BeaconNode) =
 
     var response: PostKeystoresResponse
 
-    for index, item in request.keystores.pairs():
+    for index, item in request.keystores:
       let res = importKeystore(node.attachedValidators[], node.network.rng[],
                                node.config, item, request.passwords[index])
       if res.isErr():
@@ -150,7 +150,7 @@ proc installKeymanagerHandlers*(router: var RestRouter, node: BeaconNode) =
 
     response.slashing_protection.metadata = nodeSPDIR.metadata
 
-    for index, key in keys.pairs():
+    for index, key in keys:
       let
         res = removeValidator(node.attachedValidators[], node.config, key,
                               KeystoreKind.Local)
@@ -182,7 +182,7 @@ proc installKeymanagerHandlers*(router: var RestRouter, node: BeaconNode) =
         if value.status == $KeystoreStatus.notFound:
           value.status = $KeystoreStatus.notActive
 
-    for index, key in keys.pairs():
+    for index, key in keys:
       response.data.add(keysAndDeleteStatus[key.blob.PubKey0x.PubKeyBytes])
 
     return RestApiResponse.jsonResponsePlain(response)
@@ -215,7 +215,7 @@ proc installKeymanagerHandlers*(router: var RestRouter, node: BeaconNode) =
 
     var response: PostKeystoresResponse
 
-    for index, key in keys.pairs():
+    for index, key in keys:
       let keystore = RemoteKeystore(
         version: 1'u64, remoteType: RemoteSignerType.Web3Signer,
         pubkey: key.pubkey, remote: key.url
@@ -258,7 +258,7 @@ proc installKeymanagerHandlers*(router: var RestRouter, node: BeaconNode) =
     let response =
       block:
         var resp: DeleteRemoteKeystoresResponse
-        for index, key in keys.pairs():
+        for index, key in keys:
           let res = removeValidator(node.attachedValidators[], node.config, key,
                                     KeystoreKind.Remote)
           if res.isOk:

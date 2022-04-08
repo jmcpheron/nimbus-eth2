@@ -591,7 +591,7 @@ when isMainModule:
 
     doAssert err.isOk, "compute_deltas finished with error: " & $err
 
-    for i, delta in deltas.pairs:
+    for i, delta in deltas:
       if i == 0:
         doAssert delta == Delta(Balance * validator_count), "The 0th root should have a delta"
       else:
@@ -630,7 +630,7 @@ when isMainModule:
 
     doAssert err.isOk, "compute_deltas finished with error: " & $err
 
-    for i, delta in deltas.pairs:
+    for i, delta in deltas:
       doAssert delta == Delta(Balance), "Each root should have a delta"
 
     for vote in votes:
@@ -668,7 +668,7 @@ when isMainModule:
 
     doAssert err.isOk, "compute_deltas finished with error: " & $err
 
-    for i, delta in deltas.pairs:
+    for i, delta in deltas:
       if i == 0:
         doAssert delta == -TotalDeltas, "0th root should have a negative delta"
       elif i == 1:
@@ -755,7 +755,7 @@ when isMainModule:
 
     doAssert err.isOk, "compute_deltas finished with error: " & $err
 
-    for i, delta in deltas.pairs:
+    for i, delta in deltas:
       if i == 0:
         doAssert delta == -TotalOldDeltas, "0th root should have a negative delta"
       elif i == 1:

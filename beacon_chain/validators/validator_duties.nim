@@ -273,7 +273,7 @@ proc sendSyncCommitteeMessages*(node: BeaconNode,
           var resCur: Table[uint64, int]
           var resNxt: Table[uint64, int]
 
-          for index, msg in msgs.pairs():
+          for index, msg in msgs:
             if msg.validator_index < lenu64(state.data.validators):
               let msgPeriod = sync_committee_period(msg.slot + 1)
               if msgPeriod == curPeriod:
@@ -313,7 +313,7 @@ proc sendSyncCommitteeMessages*(node: BeaconNode,
 
       await allFutures(pending)
 
-      for index, future in pending.pairs():
+      for index, future in pending:
         if future.done():
           let fres = future.read()
           if fres.isErr():
@@ -837,7 +837,7 @@ proc handleSyncCommitteeContributions(node: BeaconNode,
   var contributionsSent = 0
 
   time = timeIt:
-    for i, proof in selectionProofs.pairs():
+    for i, proof in selectionProofs:
       if not proof.completed:
         continue
 
