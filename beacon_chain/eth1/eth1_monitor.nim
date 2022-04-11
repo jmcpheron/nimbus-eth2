@@ -1393,6 +1393,7 @@ proc startEth1Syncing(m: Eth1Monitor, delayBeforeStart: Duration) {.async.} =
     else:
       awaitWithTimeout(m.eth1Progress.wait(), 5.minutes):
         raise newException(CorruptDataProvider, "No eth1 chain progress for too long")
+
       m.eth1Progress.clear()
 
       awaitWithRetries(
