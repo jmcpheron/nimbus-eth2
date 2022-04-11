@@ -1336,7 +1336,7 @@ proc startEth1Syncing(m: Eth1Monitor, delayBeforeStart: Duration) {.async.} =
     await m.dataProvider.onBlockHeaders(newBlockHeadersHandler,
                                         subscriptionErrorHandler)
 
-  let shouldProcessDeposits = false and not m.depositContractAddress.isZeroMemory
+  let shouldProcessDeposits = not m.depositContractAddress.isZeroMemory
   var scratchMerkleizer: ref DepositsMerkleizer
   var eth1SyncedTo: Eth1BlockNumber
   if shouldProcessDeposits and m.depositsChain.blocks.len == 0:
