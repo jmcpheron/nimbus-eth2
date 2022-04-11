@@ -76,10 +76,6 @@ type
 
   DepositsMerkleizer* = SszMerkleizer[depositContractLimit]
 
-  Eth1RecentBlocks* = object
-    blocksByHash: Table[BlockHash, Eth1Block]
-    latestBlockHeader: Option[Eth1BlockHeader]
-
   Eth1Chain* = object
     db: BeaconChainDB
     cfg: RuntimeConfig
