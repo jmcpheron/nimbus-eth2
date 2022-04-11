@@ -1340,7 +1340,6 @@ proc startEth1Syncing(m: Eth1Monitor, delayBeforeStart: Duration) {.async.} =
     await m.dataProvider.onBlockHeaders(newBlockHeadersHandler,
                                         subscriptionErrorHandler)
 
-  # Ported from amphora
   let shouldProcessDeposits = false and not m.depositContractAddress.isZeroMemory
   var scratchMerkleizer: ref DepositsMerkleizer
   var eth1SyncedTo: Eth1BlockNumber
@@ -1427,7 +1426,6 @@ proc startEth1Syncing(m: Eth1Monitor, delayBeforeStart: Duration) {.async.} =
           terminalBlockCandidate = parentBlock
         m.terminalBlockHash = some terminalBlockCandidate.hash
 
-    # Ported from Amphora
     if shouldProcessDeposits:
       if m.latestEth1BlockNumber <= m.cfg.ETH1_FOLLOW_DISTANCE:
         continue
